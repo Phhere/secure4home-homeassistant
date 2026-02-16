@@ -26,23 +26,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await api.login()
     except Exception as err:
         _LOGGER.error("Failed to login to Secure4Home: %s", err)
+        raise ConfigEntryAuthFailed(err) from err
         return False
 
     async def async_update_data():
         """Fetch data from API."""
-        try:
-            # Get panel mode (current alarm status)
-            mode_data = await api.get_panel_mode()
-            # Get panel status (system health)
-            status_data = await api.get_panel_status()
+        for i in range(0,3):
+            try:
+                # Get panel mode (current alarm status)
+                mode_data = await api.get_panel_mode()
+                # Get panel status (system health)
+                status_data = await api.get_panel_status()
 
-            # Combine data for sensors
-            return {
-                "mode": mode_data,
-                "status": status_data,
-            }
-        except Exception as err:
-            raise UpdateFailed(f"Error communicating with API: {err}")
+                # Combine data for sensors
+                return {
+                    "mode": mode_data,
+                    "status": status_data,
+                }
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 401:
+                    await api.login()
+            except Exception as err:
+                raise UpdateFailed(f"Error communicating with API: {err}")
+        raise UpdateFailed(f"Exceeded retries for API Communication")
 
     coordinator = DataUpdateCoordinator(
         hass,
