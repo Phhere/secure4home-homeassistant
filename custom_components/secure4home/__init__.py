@@ -48,7 +48,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if e.response.status_code == 401:
                     await api.login()
             except Exception as err:
-                raise UpdateFailed(f"Error communicating with API: {err}")
+                exception_type = type(err)
+                raise UpdateFailed(f"Error communicating with API: {exception_type} {err}")
         raise UpdateFailed(f"Exceeded retries for API Communication")
 
     coordinator = DataUpdateCoordinator(
