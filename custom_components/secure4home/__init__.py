@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-import requests
+import aiohttp
 
 from .api import Secure4HomeAPI
 from .const import DOMAIN
@@ -44,9 +44,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     "mode": mode_data,
                     "status": status_data,
                 }
-            except requests.exceptions.HTTPError as e:
-                if e.response.status_code == 401:
+            except aiohttp.client_exceptions.ClientResponseError as err:
+                if err.status == 401:
+                    _LOGGER.info("relogin after disconnect")
                     await api.login()
+                else:
+                    exception_type = type(err)
+                    raise UpdateFailed(f"Error communicating with API: {exception_type} {err}")
             except Exception as err:
                 exception_type = type(err)
                 raise UpdateFailed(f"Error communicating with API: {exception_type} {err}")
